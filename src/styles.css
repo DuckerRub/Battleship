@@ -1,0 +1,11 @@
+div {
+    border: 1px solid black;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    padding: 2rem;
+    gap: 5rem;
+    min-height: 90vh;
+}

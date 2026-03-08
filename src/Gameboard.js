@@ -14,16 +14,16 @@ class Gameboard {
     placeShip (ship, direction, row, column) {
         const coordinates = [];
         if (direction === "horizontal") {
+            if (column + ship.length > this.board.length) return "outside"
             for (let i = 0; i < ship.length; i++) {
                 coordinates.push([row, column + i])
             }
         } else {
+            if (row + ship.length > this.board.length) return "outside"
             for (let i = 0; i < ship.length; i++) {
                 coordinates.push([row + i, column])
             }
         }
-
-        if (row + ship.length >= this.board.length || column + ship.length >= this.board.length) return "outside"
         
         if (coordinates.some(e => this.board[e[0]][e[1]].element !== "sea")) return "occupied"
 

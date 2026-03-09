@@ -68,5 +68,10 @@ createPlayerAndGameboard("AI", true, 10);
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('cell')) {
         console.log(`Player: ${e.target.dataset.player}, Row: ${e.target.dataset.row}, Column: ${e.target.dataset.column}`);
+        e.target.style.backgroundColor = "blue";
     }
+});
+
+window.addEventListener('load', () => {
+    alert('Welcome to Battleship!');
 });

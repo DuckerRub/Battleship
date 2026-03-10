@@ -45,6 +45,7 @@ class Gameboard {
         if (this.board[row][column].element instanceof Ship) {
                 this.board[row][column].element.hit()
                 this.board[row][column].isHit = true
+                if (this.isGameOver()) return "game over"
                 return "hit"
         } else return "unknown"
     }

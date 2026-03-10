@@ -9,3 +9,11 @@ div {
     gap: 5rem;
     min-height: 90vh;
 }
+
+.cell {
+    color: red;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

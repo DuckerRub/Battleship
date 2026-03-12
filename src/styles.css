@@ -1,7 +1,3 @@
-div {
-    border: 1px solid black;
-}
-
 .container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -10,10 +6,49 @@ div {
     min-height: 90vh;
 }
 
+.header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 2rem;
+}
+
 .cell {
     color: red;
     box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;
+    border: 1px solid black;
+    user-select: none;
+}
+
+.gameboard {
+    touch-action: none;
+}
+
+.cell.ship {
+    background-color: black;
+}
+
+.cell.hit-ship {
+    background-color: red;
+}
+
+.cell.hit-sea {
+    background-color: gray;
+}
+
+.setup-cell.ship {
+    cursor: grab;
+}
+
+.cell.preview-valid {
+    outline: 3px solid #2ecc71;
+    outline-offset: -3px;
+}
+
+.cell.preview-invalid {
+    outline: 3px solid #e74c3c;
+    outline-offset: -3px;
 }

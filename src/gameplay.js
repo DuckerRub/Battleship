@@ -11,6 +11,48 @@ const DOM = (function () {
         if (turn) turn.textContent = text
     }
 
+    const ensurePlayer2TypeToggle = () => {
+        let wrapper = document.getElementById("player2-type-wrapper")
+        if (wrapper) return wrapper
+
+        wrapper = document.createElement("div")
+        wrapper.id = "player2-type-wrapper"
+        wrapper.className = "player2-type"
+
+        const label = document.createElement("label")
+        label.setAttribute("for", "player2-type")
+        label.textContent = "Player 2:"
+
+        const select = document.createElement("select")
+        select.id = "player2-type"
+        select.name = "player2-type"
+
+        const aiOption = document.createElement("option")
+        aiOption.value = "ai"
+        aiOption.textContent = "AI"
+
+        const humanOption = document.createElement("option")
+        humanOption.value = "human"
+        humanOption.textContent = "Human"
+
+        select.appendChild(aiOption)
+        select.appendChild(humanOption)
+
+        wrapper.appendChild(label)
+        wrapper.appendChild(select)
+
+        const startButton = document.getElementById("start-button")
+        if (startButton) header.insertBefore(wrapper, startButton)
+        else header.appendChild(wrapper)
+
+        return wrapper
+    }
+
+    const getPlayer2TypeToggle = () => {
+        const wrapper = ensurePlayer2TypeToggle()
+        return wrapper.querySelector("#player2-type")
+    }
+
     const ensureStartButton = () => {
         let button = document.getElementById("start-button")
         if (button) return button
@@ -23,9 +65,17 @@ const DOM = (function () {
         return button
     }
 
+    const setBoardHidden = (playerName, hidden) => {
+        const boardEl = document.querySelector(`[data-player="${playerName}"]`)
+        if (!boardEl) return
+        if (hidden) boardEl.classList.add("hidden")
+        else boardEl.classList.remove("hidden")
+    }
+
     const renderBoard = (playerName, gameboard, options = {}) => {
         const showShips = options.showShips === true
         const isSetup = options.isSetup === true
+        const setupPlayerName = options.setupPlayerName
 
         let boardEl = document.querySelector(`[data-player="${playerName}"]`)
         if (!boardEl) {
@@ -57,7 +107,7 @@ const DOM = (function () {
                     min-height: ${percentage};
                 `
 
-                if (isSetup && playerName === "Player1") cellEl.classList.add("setup-cell")
+                if (isSetup && setupPlayerName && playerName === setupPlayerName) cellEl.classList.add("setup-cell")
 
                 if (showShips && cell.element instanceof Ship && cell.isHit === false) {
                     cellEl.classList.add("ship")
@@ -89,7 +139,10 @@ const DOM = (function () {
     return {
         container,
         setTurnText,
+        ensurePlayer2TypeToggle,
+        getPlayer2TypeToggle,
         ensureStartButton,
+        setBoardHidden,
         renderBoard,
         clearPreviews,
         applyPreview,
@@ -98,12 +151,34 @@ const DOM = (function () {
 
 const game = (function () {
     const state = {
-        phase: "setup",
+        phase: "setup-p1",
+        config: {
+            player2Type: "ai",
+        },
+        setup: {
+            player2FleetPlaced: false,
+        },
+        turn: "Player1",
         players: {},
     }
 
     const addPlayer = (player) => {
         state.players[player.name] = player
+    }
+
+    const resetPlayer2 = (type) => {
+        delete state.players.Player2
+
+        const player2 = new Player("Player2", type === "ai", 10)
+        addPlayer(player2)
+
+        state.config.player2Type = type
+        state.setup.player2FleetPlaced = false
+
+        if (type === "ai") {
+            placeRandomFleet(player2)
+            state.setup.player2FleetPlaced = true
+        }
     }
 
     const computeCoordinates = (direction, length, row, column) => {
@@ -165,7 +240,7 @@ const game = (function () {
     }
 
     const moveShip = (playerName, ship, direction, row, column) => {
-        if (state.phase !== "setup") return false
+        if (!getSetupPlayerName()) return false
         const player = state.players[playerName]
         if (!player) return false
 
@@ -185,23 +260,23 @@ const game = (function () {
         return true
     }
 
-    const placeDefaultFleet = (player) => {
-        const placements = [
-            { length: 5, direction: "horizontal", row: 0, column: 0 },
-            { length: 4, direction: "vertical", row: 2, column: 2 },
-            { length: 3, direction: "horizontal", row: 6, column: 1 },
-            { length: 3, direction: "vertical", row: 1, column: 7 },
-            { length: 2, direction: "horizontal", row: 9, column: 5 },
-        ]
+    // const placeDefaultFleet = (player) => {
+    //     const placements = [
+    //         { length: 5, direction: "horizontal", row: 0, column: 0 },
+    //         { length: 4, direction: "vertical", row: 2, column: 2 },
+    //         { length: 3, direction: "horizontal", row: 6, column: 1 },
+    //         { length: 3, direction: "vertical", row: 1, column: 7 },
+    //         { length: 2, direction: "horizontal", row: 9, column: 5 },
+    //     ]
 
-        placements.forEach((p) => {
-            const ship = new Ship(p.length)
-            player.gameboard.placeShip(ship, p.direction, p.row, p.column)
-        })
-    }
+    //     placements.forEach((p) => {
+    //         const ship = new Ship(p.length)
+    //         player.gameboard.placeShip(ship, p.direction, p.row, p.column)
+    //     })
+    // }
 
     const placeRandomFleet = (player) => {
-        const lengths = [2, 3, 3, 4, 5]
+        const lengths = [1, 1, 2, 2, 3, 3, 4, 5]
         const boardSize = player.gameboard.board.length
 
         lengths.forEach((length) => {
@@ -230,10 +305,7 @@ const game = (function () {
         const parsedColumn = parseInt(column)
         const result = attackedPlayer.gameboard.receiveAttack(parsedRow, parsedColumn)
 
-        DOM.renderBoard(attackedPlayerName, attackedPlayer.gameboard.board, {
-            isSetup: false,
-            showShips: attackedPlayerName === "Player1",
-        })
+        renderForPhase()
 
         if (result === "game over") alert(`Player ${attackedPlayerName} lost! gg`)
         return result
@@ -248,25 +320,124 @@ const game = (function () {
         if (result === "hit") executeAIAttack()
     }
 
+    const getSetupPlayerName = () => {
+        if (state.phase === "setup-p1") return "Player1"
+        if (state.phase === "setup-p2") return "Player2"
+        return null
+    }
+
+    const isHumanVsHuman = () => state.config.player2Type === "human"
+
+    const getShowShipsForCombat = (playerName) => {
+        if (isHumanVsHuman()) return false
+        return playerName === "Player1"
+    }
+
+    const renderForPhase = () => {
+        const player1 = state.players.Player1
+        const player2 = state.players.Player2
+        if (!player1 || !player2) return
+
+        const setupPlayerName = getSetupPlayerName()
+        const isSetup = setupPlayerName !== null
+
+        const showP1Ships = isSetup ? setupPlayerName === "Player1" : getShowShipsForCombat("Player1")
+        const showP2Ships = isSetup ? setupPlayerName === "Player2" : getShowShipsForCombat("Player2")
+
+        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup, showShips: showP1Ships, setupPlayerName })
+        DOM.renderBoard("Player2", player2.gameboard.board, { isSetup, showShips: showP2Ships, setupPlayerName })
+
+        const hidePlayer1 = state.phase === "setup-p2" || state.phase === "handoff-to-p2"
+
+        const hidePlayer2 = state.phase === "handoff-to-p2" || (state.phase === "setup-p1" && isHumanVsHuman())
+
+        DOM.setBoardHidden("Player1", hidePlayer1)
+        DOM.setBoardHidden("Player2", hidePlayer2)
+    }
+
+    const enterCombat = () => {
+        state.phase = "combat"
+        state.turn = "Player1"
+
+        DOM.clearPreviews()
+        renderForPhase()
+
+        if (isHumanVsHuman()) {
+            DOM.setTurnText("Player 1: choose a target to attack")
+        } else {
+            DOM.setTurnText("Player 1 can start attacking!")
+        }
+    }
+
     const start = () => {
         const player1 = new Player("Player1", false, 10)
-        const ai = new Player("AI", true, 10)
+        const player2 = new Player("Player2", true, 10)
         addPlayer(player1)
-        addPlayer(ai)
+        addPlayer(player2)
 
-        placeDefaultFleet(player1)
-        placeRandomFleet(ai)
-
-        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup: true, showShips: true })
-        DOM.renderBoard("AI", ai.gameboard.board, { isSetup: false, showShips: false })
-        DOM.setTurnText("Reposition your ships, then press Start game")
+        placeRandomFleet(player1)
+        placeRandomFleet(player2)
+        state.setup.player2FleetPlaced = true
 
         const startButton = DOM.ensureStartButton()
+        const toggle = DOM.getPlayer2TypeToggle()
+        const toggleWrapper = toggle.parentElement
+        toggle.value = state.config.player2Type
+
+        toggle.addEventListener("change", () => {
+            if (state.phase !== "setup-p1") return
+            resetPlayer2(toggle.value)
+
+            if (isHumanVsHuman()) {
+                startButton.textContent = "Continue"
+                DOM.setTurnText("Reposition your ships, then press Continue")
+            } else {
+                startButton.textContent = "Start game"
+                DOM.setTurnText("Reposition your ships, then press Start game")
+            }
+
+            renderForPhase()
+        })
+
+        startButton.textContent = "Start game"
+        DOM.setTurnText("Reposition your ships, then press Start game")
+        renderForPhase()
+
         startButton.addEventListener("click", () => {
-            state.phase = "combat"
-            startButton.remove()
-            DOM.clearPreviews()
-            DOM.setTurnText("Player 1 can start attacking!")
+            if (state.phase === "setup-p1") {
+                if (isHumanVsHuman()) {
+                    state.phase = "handoff-to-p2"
+                    startButton.textContent = "Continue"
+                    if (toggleWrapper) toggleWrapper.remove()
+                    DOM.setTurnText("Pass device to Player 2, then press Continue")
+                    renderForPhase()
+                    return
+                }
+
+                if (toggleWrapper) toggleWrapper.remove()
+                startButton.remove()
+                enterCombat()
+                return
+            }
+
+            if (state.phase === "handoff-to-p2") {
+                state.phase = "setup-p2"
+
+                if (!state.setup.player2FleetPlaced) {
+                    placeDefaultFleet(state.players.Player2)
+                    state.setup.player2FleetPlaced = true
+                }
+
+                startButton.textContent = "Start game"
+                DOM.setTurnText("Player 2: reposition your ships, then press Start game")
+                renderForPhase()
+                return
+            }
+
+            if (state.phase === "setup-p2") {
+                startButton.remove()
+                enterCombat()
+            }
         })
     }
 
@@ -281,6 +452,8 @@ const game = (function () {
         moveShip,
         receiveAttack,
         executeAIAttack,
+        getSetupPlayerName,
+        renderForPhase,
     }
 })()
 
@@ -293,9 +466,11 @@ const dragging = (function () {
     }
 
     const getShipAt = (row, column) => {
-        const player1 = game.state.players.Player1
-        if (!player1) return null
-        const cell = player1.gameboard.board[row][column]
+        const setupPlayerName = game.getSetupPlayerName()
+        if (!setupPlayerName) return null
+        const player = game.state.players[setupPlayerName]
+        if (!player) return null
+        const cell = player.gameboard.board[row][column]
         if (!cell) return null
         if (!(cell.element instanceof Ship)) return null
         return cell.element
@@ -307,11 +482,12 @@ const dragging = (function () {
     }
 
     const onPointerDown = (e) => {
-        if (game.state.phase !== "setup") return
+        const setupPlayerName = game.getSetupPlayerName()
+        if (!setupPlayerName) return
 
         const cellEl = e.target.closest(".cell")
         if (!cellEl) return
-        if (cellEl.dataset.playerCell !== "Player1") return
+        if (cellEl.dataset.playerCell !== setupPlayerName) return
         if (!cellEl.classList.contains("setup-cell")) return
 
         const row = parseInt(cellEl.dataset.row)
@@ -319,8 +495,8 @@ const dragging = (function () {
         const ship = getShipAt(row, column)
         if (!ship) return
 
-        const player1 = game.state.players.Player1
-        const coordinates = game.getShipCoordinates(player1.gameboard.board, ship)
+        const player = game.state.players[setupPlayerName]
+        const coordinates = game.getShipCoordinates(player.gameboard.board, ship)
         const direction = game.getShipDirection(coordinates)
         const [topRow, topCol] = game.getShipTopLeft(coordinates)
         const offset = direction === "horizontal" ? column - topCol : row - topRow
@@ -335,11 +511,12 @@ const dragging = (function () {
 
     const onPointerMove = (e) => {
         if (!dragState.active) return
-        if (game.state.phase !== "setup") return
+        const setupPlayerName = game.getSetupPlayerName()
+        if (!setupPlayerName) return
 
         const element = document.elementFromPoint(e.clientX, e.clientY)
         const cellEl = element ? element.closest(".cell") : null
-        if (!cellEl || cellEl.dataset.playerCell !== "Player1") {
+        if (!cellEl || cellEl.dataset.playerCell !== setupPlayerName) {
             DOM.clearPreviews()
             return
         }
@@ -348,10 +525,10 @@ const dragging = (function () {
         const hoverColumn = parseInt(cellEl.dataset.column)
         const [row, column] = getPlacementFromHover(dragState.direction, dragState.offset, hoverRow, hoverColumn)
 
-        const player1 = game.state.players.Player1
+        const player = game.state.players[setupPlayerName]
         const coordinates = game.computeCoordinates(dragState.direction, dragState.ship.length, row, column)
-        const isValid = game.isValidMovePlacement(player1.gameboard.board, dragState.ship, dragState.direction, row, column)
-        DOM.applyPreview("Player1", coordinates, isValid)
+        const isValid = game.isValidMovePlacement(player.gameboard.board, dragState.ship, dragState.direction, row, column)
+        DOM.applyPreview(setupPlayerName, coordinates, isValid)
     }
 
     const onPointerUp = (e) => {
@@ -360,18 +537,19 @@ const dragging = (function () {
         const element = document.elementFromPoint(e.clientX, e.clientY)
         const cellEl = element ? element.closest(".cell") : null
 
-        if (cellEl && cellEl.dataset.playerCell === "Player1") {
+        const setupPlayerName = game.getSetupPlayerName()
+        if (cellEl && setupPlayerName && cellEl.dataset.playerCell === setupPlayerName) {
             const hoverRow = parseInt(cellEl.dataset.row)
             const hoverColumn = parseInt(cellEl.dataset.column)
             const [row, column] = getPlacementFromHover(dragState.direction, dragState.offset, hoverRow, hoverColumn)
 
-            const player1 = game.state.players.Player1
-            const isValid = game.isValidMovePlacement(player1.gameboard.board, dragState.ship, dragState.direction, row, column)
+            const player = game.state.players[setupPlayerName]
+            const isValid = game.isValidMovePlacement(player.gameboard.board, dragState.ship, dragState.direction, row, column)
 
             if (isValid) {
-                const moved = game.moveShip("Player1", dragState.ship, dragState.direction, row, column)
+                const moved = game.moveShip(setupPlayerName, dragState.ship, dragState.direction, row, column)
                 if (moved) {
-                    DOM.renderBoard("Player1", player1.gameboard.board, { isSetup: true, showShips: true })
+                    game.renderForPhase()
                 }
             }
         }
@@ -397,14 +575,32 @@ const events = (function () {
     DOM.container.addEventListener("click", (e) => {
         const cellEl = e.target.closest(".cell")
         if (!cellEl) return
-        if (cellEl.dataset.playerCell !== "AI") return
+        if (game.state.phase !== "combat") return
 
-        const result = game.receiveAttack("AI", cellEl.dataset.row, cellEl.dataset.column)
-        if (result === "miss") game.executeAIAttack()
-        if (result === "hit") game.executeAIAttack()
+        if (game.state.config.player2Type === "ai") {
+            if (cellEl.dataset.playerCell !== "Player2") return
+
+            const result = game.receiveAttack("Player2", cellEl.dataset.row, cellEl.dataset.column)
+            if (result === "miss") game.executeAIAttack()
+            return
+        }
+
+        const attacker = game.state.turn
+        const defender = attacker === "Player1" ? "Player2" : "Player1"
+        if (cellEl.dataset.playerCell !== defender) return
+
+        const result = game.receiveAttack(defender, cellEl.dataset.row, cellEl.dataset.column)
+        if (!result) return
+        if (result === "illegal" || result === "game over") return
+
+        if (result === "miss") {
+            game.state.turn = defender
+            const turnText =
+                defender === "Player1" ? "Player 1: choose a target to attack" : "Player 2: choose a target to attack"
+            DOM.setTurnText(turnText)
+        }
     })
 })()
 
 game.start()
 dragging.attach()
-

@@ -27,6 +27,17 @@
     touch-action: none;
 }
 
+.gameboard.hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.player2-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .cell.ship {
     background-color: black;
 }

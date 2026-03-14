@@ -1,8 +1,9 @@
 .container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    padding: 2rem;
-    gap: 5rem;
+    padding: 2rem 2.5rem;
+    gap: 3rem;
+    margin: 0 auto;
     min-height: 90vh;
 }
 
@@ -10,22 +11,31 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 2rem;
-    justify-content: space-between;
-}
-
-.cell {
-    color: red;
-    box-sizing: border-box;
-    display: flex;
+    padding: 1rem 2.5rem;
     justify-content: center;
-    align-items: center;
-    border: 1px solid black;
-    user-select: none;
 }
 
 .gameboard {
     touch-action: none;
+    gap: 2px;
+    padding: 0.75rem;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    background-color: #f7f7f7;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    justify-self: center;
+}
+
+.cell {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #bdbdbd;
+    background-color: #ffffff;
+    color: #b00020;
+    user-select: none;
+    aspect-ratio: 1 / 1;
 }
 
 .gameboard.hidden {

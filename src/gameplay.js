@@ -65,13 +65,15 @@ const DOM = (function () {
         return button
     }
 
-    const ensureRandmizeButton = () => {
-        const randomizeButton = document.createElement("button");
-        randomizeButton.id = "randomize-button"
-        randomizeButton.type = "button"
-        randomizeButton.textContent = "Randomize"
-        header.insertBefore(randomizeButton, header.children[1] || null);
-        return randomizeButton
+    const ensureRandomizeButton = () => {
+        const randomizeButton = document.getElementById("randomize-button");
+        if (randomizeButton) return randomizeButton
+        const newRandomizeButton = document.createElement("button");
+        newRandomizeButton.id = "randomize-button"
+        newRandomizeButton.type = "button"
+        newRandomizeButton.textContent = "Randomize"
+        header.insertBefore(newRandomizeButton, header.children[1] || null);
+        return newRandomizeButton
     }
 
     const setBoardHidden = (playerName, hidden) => {
@@ -163,7 +165,7 @@ const DOM = (function () {
         clearPreviews,
         applyPreview,
         dimAttackersBoard,
-        ensureRandmizeButton
+        ensureRandmizeButton: ensureRandomizeButton
     }
 })()
 
@@ -349,8 +351,8 @@ const game = (function () {
         const showP1Ships = isSetup ? setupPlayerName === "Player1" : getShowShipsForCombat("Player1")
         const showP2Ships = isSetup ? setupPlayerName === "Player2" : getShowShipsForCombat("Player2")
 
-        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup, showShips: showP1Ships, setupPlayerName, isAttacker: state.turn === "Player1" })
-        DOM.renderBoard("Player2", player2.gameboard.board, { isSetup, showShips: showP2Ships, setupPlayerName, isAttacker: state.turn === "Player2" })
+        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup, showShips: showP1Ships, setupPlayerName})
+        DOM.renderBoard("Player2", player2.gameboard.board, { isSetup, showShips: showP2Ships, setupPlayerName})
 
         const hidePlayer1 = state.phase === "setup-p2" || state.phase === "handoff-to-p2"
         const hidePlayer2 = state.phase === "handoff-to-p2" || (state.phase === "setup-p1" && isHumanVsHuman())
@@ -628,7 +630,3 @@ const events = (function () {
 
 game.start()
 dragging.attach()
-
-// clicking on a ship during startup rotates the ship
-// save stuff to local storage once game starts only, and allow reseting a game
-// make it prettier

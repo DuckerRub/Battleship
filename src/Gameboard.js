@@ -35,6 +35,16 @@ class Gameboard {
     return coordinates;
   }
 
+  resetBoard(){
+    this.board.forEach((row, rowIndex) => {
+      row.forEach((column, columnIndex) => {
+        this.board[rowIndex][columnIndex] = { element: "sea", isHit: false };
+      });
+    });
+
+    return this.board;
+  }
+
   receiveAttack(row, column) {
     if (this.board[row][column].isHit === true) return "illegal";
 

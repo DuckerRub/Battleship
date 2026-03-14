@@ -65,6 +65,15 @@ const DOM = (function () {
         return button
     }
 
+    const ensureRandmizeButton = () => {
+        const randomizeButton = document.createElement("button");
+        randomizeButton.id = "randomize-button"
+        randomizeButton.type = "button"
+        randomizeButton.textContent = "Randomize"
+        header.insertBefore(randomizeButton, header.children[1] || null);
+        return randomizeButton
+    }
+
     const setBoardHidden = (playerName, hidden) => {
         const boardEl = document.querySelector(`[data-player="${playerName}"]`)
         if (!boardEl) return
@@ -136,6 +145,13 @@ const DOM = (function () {
         })
     }
 
+    const dimAttackersBoard = (playerName, dimmed) => {
+        const boardEl = document.querySelector(`[data-player="${playerName}"]`);
+        if (!boardEl) return
+        if (dimmed) boardEl.classList.add("attackers-board")
+        else boardEl.classList.remove("attackers-board");
+    }
+
     return {
         container,
         setTurnText,
@@ -146,6 +162,8 @@ const DOM = (function () {
         renderBoard,
         clearPreviews,
         applyPreview,
+        dimAttackersBoard,
+        ensureRandmizeButton
     }
 })()
 
@@ -260,24 +278,11 @@ const game = (function () {
         return true
     }
 
-    // const placeDefaultFleet = (player) => {
-    //     const placements = [
-    //         { length: 5, direction: "horizontal", row: 0, column: 0 },
-    //         { length: 4, direction: "vertical", row: 2, column: 2 },
-    //         { length: 3, direction: "horizontal", row: 6, column: 1 },
-    //         { length: 3, direction: "vertical", row: 1, column: 7 },
-    //         { length: 2, direction: "horizontal", row: 9, column: 5 },
-    //     ]
-
-    //     placements.forEach((p) => {
-    //         const ship = new Ship(p.length)
-    //         player.gameboard.placeShip(ship, p.direction, p.row, p.column)
-    //     })
-    // }
-
     const placeRandomFleet = (player) => {
         const lengths = [1, 1, 2, 2, 3, 3, 4, 5]
         const boardSize = player.gameboard.board.length
+
+        player.gameboard.resetBoard();
 
         lengths.forEach((length) => {
             const ship = new Ship(length)
@@ -344,15 +349,23 @@ const game = (function () {
         const showP1Ships = isSetup ? setupPlayerName === "Player1" : getShowShipsForCombat("Player1")
         const showP2Ships = isSetup ? setupPlayerName === "Player2" : getShowShipsForCombat("Player2")
 
-        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup, showShips: showP1Ships, setupPlayerName })
-        DOM.renderBoard("Player2", player2.gameboard.board, { isSetup, showShips: showP2Ships, setupPlayerName })
+        DOM.renderBoard("Player1", player1.gameboard.board, { isSetup, showShips: showP1Ships, setupPlayerName, isAttacker: state.turn === "Player1" })
+        DOM.renderBoard("Player2", player2.gameboard.board, { isSetup, showShips: showP2Ships, setupPlayerName, isAttacker: state.turn === "Player2" })
 
         const hidePlayer1 = state.phase === "setup-p2" || state.phase === "handoff-to-p2"
-
         const hidePlayer2 = state.phase === "handoff-to-p2" || (state.phase === "setup-p1" && isHumanVsHuman())
 
         DOM.setBoardHidden("Player1", hidePlayer1)
         DOM.setBoardHidden("Player2", hidePlayer2)
+
+        if (isHumanVsHuman() && state.phase === "combat") {
+            const dimPlayer1 = state.turn === "Player1"
+            const dimPlayer2 = state.turn === "Player2"
+    
+            DOM.dimAttackersBoard("Player1", dimPlayer1)
+            DOM.dimAttackersBoard("Player2", dimPlayer2)
+        }
+        
     }
 
     const enterCombat = () => {
@@ -380,6 +393,13 @@ const game = (function () {
         state.setup.player2FleetPlaced = true
 
         const startButton = DOM.ensureStartButton()
+        const randomizeButton = DOM.ensureRandmizeButton();
+            randomizeButton.addEventListener("click", () => {
+                const player = state.phase === "setup-p1" ? "Player1" : "Player2"
+                placeRandomFleet(state.players[player]);
+                renderForPhase()
+            })
+
         const toggle = DOM.getPlayer2TypeToggle()
         const toggleWrapper = toggle.parentElement
         toggle.value = state.config.player2Type
@@ -390,26 +410,27 @@ const game = (function () {
 
             if (isHumanVsHuman()) {
                 startButton.textContent = "Continue"
-                DOM.setTurnText("Reposition your ships, then press Continue")
+                DOM.setTurnText("Reposition your ships by dragging them, or click on: ")
             } else {
                 startButton.textContent = "Start game"
-                DOM.setTurnText("Reposition your ships, then press Start game")
+                DOM.setTurnText("Reposition your ships by dragging them, or click on: ")
             }
 
             renderForPhase()
         })
 
         startButton.textContent = "Start game"
-        DOM.setTurnText("Reposition your ships, then press Start game")
+        DOM.setTurnText("Reposition your ships by dragging them, or click on: ")
         renderForPhase()
 
         startButton.addEventListener("click", () => {
             if (state.phase === "setup-p1") {
+                randomizeButton.style.display = "none"
                 if (isHumanVsHuman()) {
                     state.phase = "handoff-to-p2"
                     startButton.textContent = "Continue"
                     if (toggleWrapper) toggleWrapper.remove()
-                    DOM.setTurnText("Pass device to Player 2, then press Continue")
+                    DOM.setTurnText("Pass device to Player 2")
                     renderForPhase()
                     return
                 }
@@ -422,20 +443,22 @@ const game = (function () {
 
             if (state.phase === "handoff-to-p2") {
                 state.phase = "setup-p2"
-
+                randomizeButton.style.display = "block"
+                
                 if (!state.setup.player2FleetPlaced) {
-                    placeDefaultFleet(state.players.Player2)
+                    placeRandomFleet(state.players.Player2)
                     state.setup.player2FleetPlaced = true
                 }
 
                 startButton.textContent = "Start game"
-                DOM.setTurnText("Player 2: reposition your ships, then press Start game")
+                DOM.setTurnText("Player 2: reposition your ships by dragging them, or click on: ")
                 renderForPhase()
                 return
             }
 
             if (state.phase === "setup-p2") {
                 startButton.remove()
+                randomizeButton.style.display = "none"
                 enterCombat()
             }
         })
@@ -598,9 +621,14 @@ const events = (function () {
             const turnText =
                 defender === "Player1" ? "Player 1: choose a target to attack" : "Player 2: choose a target to attack"
             DOM.setTurnText(turnText)
+            game.renderForPhase()
         }
     })
 })()
 
 game.start()
 dragging.attach()
+
+// clicking on a ship during startup rotates the ship
+// save stuff to local storage once game starts only, and allow reseting a game
+// make it prettier
